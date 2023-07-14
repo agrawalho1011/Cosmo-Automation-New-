@@ -1394,122 +1394,186 @@ For Each surchargesCell In mainWs.range(mainWs.Cells(range(surchargeCellValue).r
          
           Next fafCurrencyColumn
      ElseIf InStr(surchargesCell, "THC") > 0 Then
-      
-        surchargesstartIndex = InStr(surchargesStringB, ":") + 2 ' Add 2 to skip the colon and space
-        surchargesendIndex = InStr(surchargesstartIndex, surchargesStringB, " ") - 1 ' Get the index of the next space and subtract 1
-        currencyFAF = Trim(Mid(surchargesStringB, surchargesstartIndex, surchargesendIndex - surchargesstartIndex + 1))
-    
-        'fafpricestartIndex = InStr(surchargesStringB, ":") + 1
-        'fafpriceendIndex = InStr(surchargesStringB, ",") - 1
-        fafpricestartIndex = InStr(surchargesStringB, ":") + 6
-        fafpriceendIndex = InStr(surchargesStringB, ",") - 1
-        valueString = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
-        'FAF20DCPrice = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
-        FAF20DCPrice = CDbl(valueString)
+        Dim splitStrings() As String
+        Dim splitVariable() As String
+        Dim b As Integer
+        Dim c As Integer
+        Dim d As Integer
+        
+        ' Split the string by "/"
+        splitStrings = Split(surchargesStringB, " / ")
+        
+        ' Resize the splitVariable array to match the number of split strings
+        ReDim splitVariable(LBound(splitStrings) To UBound(splitStrings))
+        
+        ' Store each split string in the splitVariable array
+        For d = LBound(splitStrings) To UBound(splitStrings)
+            splitVariable(d) = Trim(splitStrings(d))
+        
+        
+        ' Split the specific string into different dim variables
+        Dim subSplitStrings() As String
+        Dim subSplitVariable() As String
+        
+        subSplitStrings = Split(splitVariable(d), ",")
+        ReDim subSplitVariable(LBound(subSplitStrings) To UBound(subSplitStrings))
+        
+        For c = LBound(subSplitStrings) To UBound(subSplitStrings)
+            subSplitVariable(c) = Trim(subSplitStrings(c))
+        
+        
+            Dim SplitsubStringsValue() As String
+            Dim subSplitStringsValue() As String
             
-        priceUnitTypestartIndex = InStr(surchargesStringB, "/") + 1
-        priceUnitTypeendIndex = InStr(surchargesStringB, "[") - 1
-        priceUnitType = Trim(Mid(surchargesStringB, priceUnitTypestartIndex, priceUnitTypeendIndex - priceUnitTypestartIndex))
-    
-            For Each fafCurrencyColumn In ws.Rows(1).Cells
-                If InStr(1, fafCurrencyColumn.value, "OTHC currency", vbTextCompare) > 0 Then
+            subSplitStringsValue = Split(subSplitVariable(c), " ")
+            ReDim SplitsubStringsValue(LBound(subSplitStringsValue) To UBound(subSplitStringsValue))
             
-                ' Loop through each column with "INCLUDE" header
-                'For Each includeColumn In includeColumns
-                ' Get the column index
-                    fafCurrencyIndex = fafCurrencyColumn.Column
-                ' Fill data in the column with "X"
-                    ws.Cells(newRow, fafCurrencyIndex).value = currencyFAF
-                End If
-                   
-                    
-                If InStr(1, fafCurrencyColumn.value, "20DC OTHC Price", vbTextCompare) > 0 Then
-                        
-                    faf20priceIndex = fafCurrencyColumn.Column
-                    ' Fill data in the column with "X"
-                    If priceUnitType = "TEU" Then
-                        ws.Cells(newRow, faf20priceIndex).value = FAF20DCPrice
-                    End If
-                End If
-            
-                    
-                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Price", vbTextCompare) > 0 Then
-                        
-                    faf40dcpriceIndex = fafCurrencyColumn.Column
-                    
-                    ' Fill data in the column with "X"
-                    If priceUnitType = "TEU" Then
-                        FAF40DCPrice = CDbl(FAF20DCPrice) * 2
-                        ws.Cells(newRow, faf40dcpriceIndex).value = FAF40DCPrice
-                    End If
-                End If
-             
-                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Price", vbTextCompare) > 0 Then
-                        
-                    faf40hcpriceIndex = fafCurrencyColumn.Column
-                    
-                    ' Fill data in the column with "X"
-                    If priceUnitType = "TEU" Then
-                        FAF40HCPrice = CDbl(FAF20DCPrice) * 2
-                        ws.Cells(newRow, faf40hcpriceIndex).value = FAF40HCPrice
-                    End If
-                 End If
-             
-                If InStr(1, fafCurrencyColumn.value, "20DC OTHC Pricing type", vbTextCompare) > 0 Then
-                   If priceUnitType = "TEU" Then
-                       
-                      faf20dcpriceTypeIndex = fafCurrencyColumn.Column
-                      ws.Cells(newRow, faf20dcpriceTypeIndex).value = "per unit"
-                   End If
-                End If
-                
-                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Pricing type", vbTextCompare) > 0 Then
-                    If priceUnitType = "TEU" Then
-                        'Dim faf40hcCategoryIndex As Long
-                        'Dim faf40dcCategoryIndex As Long
-                        'Dim faf20CategoryIndex As Long
-                        'Dim faf40hcpriceTypeIndex As Long
-                        'Dim faf40dcpriceTypeIndex As Long
-                        faf40dcpriceTypeIndex = fafCurrencyColumn.Column
-                        ws.Cells(newRow, faf40dcpriceTypeIndex).value = "per unit"
-                    End If
-                End If
-                
-                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Pricing type", vbTextCompare) > 0 Then
-                    If priceUnitType = "TEU" Then
-                        
-                        faf40hcpriceTypeIndex = fafCurrencyColumn.Column
-                        ws.Cells(newRow, faf40hcpriceTypeIndex).value = "per unit"
-                    End If
-                 End If
-             
-                 If InStr(1, fafCurrencyColumn.value, "20DC OTHC Category", vbTextCompare) > 0 Then
-                    If priceUnitType = "TEU" Then
-                        
-                       faf20dcCategoryIndex = fafCurrencyColumn.Column
-                       ws.Cells(newRow, faf20dcCategoryIndex).value = "lineitem"
-                    End If
-                End If
-                
-                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Category", vbTextCompare) > 0 Then
-                    If priceUnitType = "TEU" Then
-                        
-                        faf40dcCategoryIndex = fafCurrencyColumn.Column
-                        ws.Cells(newRow, faf40dcCategoryIndex).value = "lineitem"
-                    End If
-                End If
-                
-                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Category", vbTextCompare) > 0 Then
-                    If priceUnitType = "TEU" Then
-                        
-                        faf40hcCategoryIndex = fafCurrencyColumn.Column
-                        ws.Cells(newRow, faf40hcCategoryIndex).value = "lineitem"
-                    End If
-                 End If
+            'For b = LBound(SplitsubStringsValue) To UBound(SplitsubStringsValue)
+                subSplitStringsValue(b) = subSplitStringsValue(b)
+            'Next b
+              
+         For b = LBound(SplitsubStringsValue) To UBound(SplitsubStringsValue)
          
-          Next fafCurrencyColumn
-
-    
+            Dim surchargePortValue As String
+             surchargePortValue = Trim(subSplitStringsValue(b))
+            If InStr(1, surchargePortValue, port, vbTextCompare) > 0 Then
+                'surchargesstartIndex = InStr(surchargesStringB, ":") + 2 ' Add 2 to skip the colon and space
+                'surchargesendIndex = InStr(surchargesstartIndex, surchargesStringB, " ") - 1 ' Get the index of the next space and subtract 1
+                currencyFAF = subSplitStringsValue(1)
+                
+                
+                'fafpricestartIndex = InStr(surchargesStringB, ":") + 1
+                'fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+                'fafpricestartIndex = InStr(surchargesStringB, ":") + 6
+                'fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+            
+                valueString = subSplitStringsValue(2)
+                'FAF20DCPrice = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
+                FAF20DCPrice = CDbl(valueString)
+                    
+                'priceUnitTypestartIndex = InStr(surchargesStringB, "/") + 1
+                'priceUnitTypeendIndex = InStr(surchargesStringB, "[") - 1
+                priceUnitType = subSplitStringsValue(2)
+            
+                    For Each fafCurrencyColumn In ws.Rows(1).Cells
+                        If InStr(1, fafCurrencyColumn.value, "OTHC currency", vbTextCompare) > 0 Then
+                    
+                        ' Loop through each column with "INCLUDE" header
+                        'For Each includeColumn In includeColumns
+                        ' Get the column index
+                            fafCurrencyIndex = fafCurrencyColumn.Column
+                        ' Fill data in the column with "X"
+                            ws.Cells(newRow, fafCurrencyIndex).value = currencyFAF
+                        End If
+                           
+                            
+                        If InStr(1, fafCurrencyColumn.value, "20DC OTHC Price", vbTextCompare) > 0 Then
+                                
+                            faf20priceIndex = fafCurrencyColumn.Column
+                            ' Fill data in the column with "X"
+                            If priceUnitType = "TEU" Then
+                                ws.Cells(newRow, faf20priceIndex).value = FAF20DCPrice
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf20priceIndex).value = FAF20DCPrice
+                            End If
+                        End If
+                    
+                            
+                        If InStr(1, fafCurrencyColumn.value, "40DC OTHC Price", vbTextCompare) > 0 Then
+                                
+                            faf40dcpriceIndex = fafCurrencyColumn.Column
+                            
+                            ' Fill data in the column with "X"
+                            If priceUnitType = "TEU" Then
+                                FAF40DCPrice = CDbl(FAF20DCPrice) * 2
+                                ws.Cells(newRow, faf40dcpriceIndex).value = FAF40DCPrice
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40dcpriceIndex).value = FAF40DCPrice
+                            End If
+                        End If
+                     
+                        If InStr(1, fafCurrencyColumn.value, "40HC OTHC Price", vbTextCompare) > 0 Then
+                                
+                            faf40hcpriceIndex = fafCurrencyColumn.Column
+                            
+                            ' Fill data in the column with "X"
+                            If priceUnitType = "TEU" Then
+                                FAF40HCPrice = CDbl(FAF20DCPrice) * 2
+                                ws.Cells(newRow, faf40hcpriceIndex).value = FAF40HCPrice
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40hcpriceIndex).value = FAF40HCPrice
+                            End If
+                         End If
+                     
+                        If InStr(1, fafCurrencyColumn.value, "20DC OTHC Pricing type", vbTextCompare) > 0 Then
+                           If priceUnitType = "TEU" Then
+                               
+                              faf20dcpriceTypeIndex = fafCurrencyColumn.Column
+                              ws.Cells(newRow, faf20dcpriceTypeIndex).value = "per unit"
+                           ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf20dcpriceTypeIndex).value = "per container"
+                           End If
+                        End If
+                        
+                        If InStr(1, fafCurrencyColumn.value, "40DC OTHC Pricing type", vbTextCompare) > 0 Then
+                            If priceUnitType = "TEU" Then
+                                'Dim faf40hcCategoryIndex As Long
+                                'Dim faf40dcCategoryIndex As Long
+                                'Dim faf20CategoryIndex As Long
+                                'Dim faf40hcpriceTypeIndex As Long
+                                'Dim faf40dcpriceTypeIndex As Long
+                                faf40dcpriceTypeIndex = fafCurrencyColumn.Column
+                                ws.Cells(newRow, faf40dcpriceTypeIndex).value = "per unit"
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40dcpriceTypeIndex).value = "per container"
+                            End If
+                        End If
+                        
+                        If InStr(1, fafCurrencyColumn.value, "40HC OTHC Pricing type", vbTextCompare) > 0 Then
+                            If priceUnitType = "TEU" Then
+                                
+                                faf40hcpriceTypeIndex = fafCurrencyColumn.Column
+                                ws.Cells(newRow, faf40hcpriceTypeIndex).value = "per unit"
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40hcpriceTypeIndex).value = "per container"
+                            End If
+                         End If
+                     
+                         If InStr(1, fafCurrencyColumn.value, "20DC OTHC Category", vbTextCompare) > 0 Then
+                            If priceUnitType = "TEU" Then
+                                
+                               faf20dcCategoryIndex = fafCurrencyColumn.Column
+                               ws.Cells(newRow, faf20dcCategoryIndex).value = "lineitem"
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                               ws.Cells(newRow, faf20dcCategoryIndex).value = "lineitem"
+                            End If
+                        End If
+                        
+                        If InStr(1, fafCurrencyColumn.value, "40DC OTHC Category", vbTextCompare) > 0 Then
+                            If priceUnitType = "TEU" Then
+                                
+                                faf40dcCategoryIndex = fafCurrencyColumn.Column
+                                ws.Cells(newRow, faf40dcCategoryIndex).value = "lineitem"
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40dcCategoryIndex).value = "lineitem"
+                            End If
+                        End If
+                        
+                        If InStr(1, fafCurrencyColumn.value, "40HC OTHC Category", vbTextCompare) > 0 Then
+                            If priceUnitType = "TEU" Then
+                                
+                                faf40hcCategoryIndex = fafCurrencyColumn.Column
+                                ws.Cells(newRow, faf40hcCategoryIndex).value = "lineitem"
+                            ElseIf InStr(1, priceUnitType, "PER CTR.", vbTextCompare) > 0 Then
+                                ws.Cells(newRow, faf40hcCategoryIndex).value = "lineitem"
+                            End If
+                         End If
+                 
+                  Next fafCurrencyColumn
+            End If
+        Next b
+    Next c
+Next d
     End If
 Next surchargesCell
 
@@ -1571,4 +1635,3 @@ Next surchargesCell
     MsgBox "Operation cancelled."
     End If
 End Sub
-
