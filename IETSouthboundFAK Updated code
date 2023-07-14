@@ -1,0 +1,1574 @@
+Sub IETSouthboundFAK()
+    Dim wb As Workbook
+    Dim ws As Worksheet
+    Dim lastRow As Long
+    Dim mainWb As Workbook
+    Dim mainWs As Worksheet
+    Dim remarksWs As Worksheet
+    Dim portsRange As range
+    Dim remarksPortsRange As range
+    Dim destinationsRange As range
+    Dim remarksDestinationsRange As range
+    Dim port As Variant
+    Dim destination As Variant
+    Dim remarksPort As Variant
+    Dim remarksDestination As Variant
+    Dim newRow As Long
+    Dim mainFilePath As String
+    Dim value20DC As Variant
+    Dim value40DC As Variant
+    Dim value40HC As Variant
+    
+    ' Select the main Excel file
+    mainFilePath = Application.GetOpenFilename(FileFilter:="Excel Files (*.xlsx), *.xlsx")
+    
+    If mainFilePath <> "False" Then
+        ' Open the main Excel file
+        Set mainWb = Workbooks.Open(mainFilePath)
+        Set mainWs = mainWb.Sheets(2) ' Modify the sheet index if needed
+        Set remarksWs = mainWb.Sheets(2)
+        ' Find the range of ports and destinations in the main workbook
+        Set portsRange = mainWs.range("B12", mainWs.Cells(12, Columns.Count).End(xlToLeft))
+        
+        ' Extract the validFrom value from cell B9
+        validFrom = mainWs.range("B9").value
+        
+        ' Parse the date string manually to create a date value
+        Dim day As String
+        Dim month As String
+        Dim year As String
+        
+        validFrom = mainWs.range("B9").value
+        day = Split(validFrom, ".")(0)
+        month = Split(validFrom, ".")(1)
+        year = Split(validFrom, ".")(2)
+        
+        ' Extract the date portion before the hyphen
+        year = Trim(Split(year, "-")(0))
+        
+        validFrom = DateSerial(CInt(year), CInt(month), CInt(day))
+        
+        ' Convert the date value to "yyyy-mm-dd" format
+        validFrom = Format(validFrom, "yyyy-mm-dd")
+        
+        
+        ' Extract the date portion from validTo
+        Dim validToDate As String
+        validTo = mainWs.range("B10").value
+        day = Split(validTo, ".")(0)
+        month = Split(validTo, ".")(1)
+        year = Split(validTo, ".")(2)
+        
+        ' Extract the date portion before the hyphen
+        year = Trim(Split(year, "-")(0))
+        
+        validTo = DateSerial(CInt(year), CInt(month), CInt(day))
+        
+        ' Convert the date value to "yyyy-mm-dd" format
+        validTo = Format(validTo, "yyyy-mm-dd")
+        
+        
+        'Currency Value
+        
+        currencyValue = mainWs.Cells(16, 3).value ' 6 corresponds to column D
+
+        ' Extract the value after the colon
+        Dim currencyCode As String
+        Dim colonIndex As Long
+        colonIndex = InStr(currencyValue, ":")
+        If colonIndex > 0 Then
+            currencyCode = Trim(Mid(currencyValue, colonIndex + 1))
+        End If
+        
+        ' Commodity
+        Dim comodity As range
+        Set comodity = mainWs.range("B11", mainWs.Cells(11, Columns.Count).End(xlToLeft))
+        
+        Dim comodityValue As String
+        comodityValue = comodity.value
+        
+        Dim extractedValue As String
+        extractedValue = Split(comodityValue, "(")(0)
+        
+        ' Last Destination row
+        Dim lastDestinationRow As Long
+        lastDestinationRow = mainWs.range("A" & mainWs.Rows.Count).End(xlUp).row
+        Dim destinationsEndRow As Long
+        
+        ' Find the end row for destinations by searching for "REMARKS" in column A
+        destinationsEndRow = Application.WorksheetFunction.Match("REMARKS", mainWs.range("A19:A" & lastDestinationRow), 0)
+        destinationsEndRow = destinationsEndRow + 18 ' Offset by 16 to account for starting row A17
+        
+        ' Exclude the two empty rows before "REMARKS"
+        If destinationsEndRow > 18 Then
+            destinationsEndRow = destinationsEndRow - 3
+        End If
+        
+        ' Set the destinations range
+        Set destinationsRange = mainWs.range("A19:A" & destinationsEndRow)
+        
+        ' Open a new workbook
+        Set wb = Workbooks.Add
+        Set ws = wb.Sheets(1)
+        
+        
+' Generate Inclusive Columns
+Dim lastRowCheck As Long
+Dim rangeToCheckNew As range
+Dim cell As range
+Dim concatenatedValue As String
+Dim valueParts() As String
+Dim uniqueValue As Variant
+Dim partValue As String
+Dim partValues() As String
+Dim inclusiveValue As String
+Dim matchingValues() As String
+Dim matchingCount As Long
+Dim i As Long
+Dim includeColumns As range
+Dim includeColumn As range
+Dim fafCurrencyColumns As range
+Dim fafCurrencyColumn As range
+
+lastRowCheck = destinationsEndRow
+Set rangeToCheckNew = mainWs.range("M19:M" & lastRowCheck)
+
+concatenatedValue = ""
+ReDim partValues(1 To 1)
+ReDim matchingValues(1 To 1)
+matchingCount = 0
+
+For Each cell In rangeToCheckNew.Cells
+    concatenatedValue = cell.value
+    
+    If InStr(concatenatedValue, "incl.") > 0 Then
+        ' Remove "incl." and everything after "-"
+        concatenatedValue = Replace(concatenatedValue, "incl.", "")
+        concatenatedValue = Left(concatenatedValue, InStr(concatenatedValue, "-") - 1)
+        
+        ' Split the value by commas
+        valueParts = Split(concatenatedValue, ",")
+        
+        ' Process each part
+        For Each uniqueValue In valueParts
+            
+            ' Check if uniqueValue is equal to inclusiveValue
+            If Not uniqueValue = inclusiveValue Then
+                matchingCount = matchingCount + 1
+                ReDim Preserve matchingValues(1 To matchingCount)
+                matchingValues(matchingCount) = uniqueValue
+                inclusiveValue = uniqueValue
+                ' Add the uniqueValue to the partValues array
+                partValues(UBound(partValues)) = uniqueValue
+                ReDim Preserve partValues(1 To UBound(partValues) + 1)
+            End If
+        Next uniqueValue
+    End If
+Next cell
+
+' Remove the last empty element in partValues array
+If UBound(partValues) > 1 Then
+    ReDim Preserve partValues(1 To UBound(partValues) - 1)
+End If
+
+' Use the matchingValues array as desired
+'For i = 1 To matchingCount
+    ' Access each matching value using matchingValues(i)
+    ' ...
+'Next i
+
+
+        
+        ' Add column headers
+        'ws.Range("A1:Z1").Value = Array("cf_cdup", "Validity From", "Validity To", "Origin Shipment Type", "Destination Shipment Type", "Leg Type", "Commodities", "Amendment Number", "Lineitem id", "Haulage mode destination", "Origin Locations", "Via destination", "Destination Locations", "Currency", "20DC Price", "40DC Price", "40HC Price", "20DC Pricing Type", "40DC Pricing Type", "40HC Pricing Type", "cf_Services", "cf_Contract notes", "Rate Remarks")
+        
+        ' Add column headers and apply bold formatting
+        With ws.range("A1:W1")
+            .value = Array("cf_cdup", "Validity From", "Validity To", "Origin Shipment Type", "Destination Shipment Type", "Leg Type", "Commodities", "Amendment Number", "Lineitem id", "Haulage mode destination", "Origin Locations", "Via destination", "Destination Locations", "Currency", "20DC Price", "40DC Price", "40HC Price", "20DC Pricing Type", "40DC Pricing Type", "40HC Pricing Type", "cf_Services", "cf_Contract notes", "Rate Remarks")
+            .Font.Bold = True
+        End With
+        
+        ' Use the matchingValues array as desired
+For i = 1 To matchingCount
+    ' Access each matching value using matchingValues(i)
+    Dim partName As String
+    partName = matchingValues(i)
+    
+    If partName = "BAF" Then
+        partName = "BAF"
+        
+    ElseIf partName = "FAF" Then
+        partName = "EBAF"
+        
+    ElseIf partName = "Doc Fee" Then
+        partName = "ODOC"
+        
+    ElseIf partName = "THD" Then
+        partName = "DTHC"
+        
+    ElseIf partName = "Congestion" Then
+        partName = "OECTS/DECTS"
+        
+    ElseIf partName = "War Risk" Then
+        partName = "WRS"
+        
+    ElseIf partName = "Winter Surcharge" Then
+        partName = "WSU"
+        
+    ElseIf partName = "LSS" Then
+        partName = "LSF"
+        
+    ElseIf partName = "EBS" Then
+        partName = "EBAF"
+        
+    ElseIf partName = "PCS" Then
+        partName = "CONGEST"
+        
+    ElseIf partName = "PSS" Then
+        partName = "PSS"
+        
+    ElseIf partName = "IMO" Then
+        partName = "IMO"
+        
+    ElseIf partName = "Low Sulphur Surcharge" Then
+        partName = "LSF"
+        
+    ElseIf partName = "WRS" Then
+        partName = "WRS"
+        
+    ElseIf partName = "WSU" Then
+        partName = "WSU"
+    End If
+    
+    ' Add new column headers
+    Dim header1 As String
+    Dim header2 As String
+    Dim header3 As String
+    Dim header1Column As range
+    Dim header2Column As range
+    Dim header3Column As range
+    header1 = "20DC" & partName & "INCLUDE"
+    Set header1Column = ws.Rows(1).Find(header1, , , xlPart, , , False)
+    header2 = "40DC" & partName & "INCLUDE"
+    Set header2Column = ws.Rows(1).Find(header2, , , xlPart, , , False)
+    header3 = "40HC" & partName & "INCLUDE"
+    Set header3Column = ws.Rows(1).Find(header3, , , xlPart, , , False)
+    
+    ' Find the position to insert the new column headers
+    Dim headerPosition As Long
+    headerPosition = ws.range("1:1").Find("Rate Remarks").Column + 1
+    
+    ' Insert the new column headers
+    ws.Cells(1, headerPosition).Resize(1, 3).Insert Shift:=xlToRight
+    
+    If header1Column Is Nothing Then
+    ws.Cells(1, headerPosition).value = header1
+    End If
+    If header2Column Is Nothing Then
+    ws.Cells(1, headerPosition + 1).value = header2
+    End If
+    If header3Column Is Nothing Then
+    ws.Cells(1, headerPosition + 2).value = header3
+    End If
+    ' Apply bold formatting to the new column headers
+    ws.range(ws.Cells(1, headerPosition), ws.Cells(1, headerPosition + 2)).Font.Bold = True
+    
+    ' Fill "X" in the columns that contain "INCLUDE" in the header
+    'Dim lastColumn As Long
+    'lastColumn = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    
+    'For j = headerPosition To lastColumn
+        'If InStr(1, ws.Cells(1, j).value, "INCLUDE") > 0 Then
+            'ws.Cells(2, j).value = "X"
+        'End If
+    'Next j
+    ' Check if the column headers contain "INCLUDE"
+   
+    Set includeColumns = ws.Rows(1).Find("INCLUDE", , , xlPart, , , False)
+    
+Next i
+        
+        ' Find the last used row in the active worksheet
+        lastRow = ws.Cells(ws.Rows.Count, 1).End(xlUp).row
+        
+        Dim columnRef As String
+        columnRef = "C"
+        Dim columnRef1 As String
+        columnRef1 = Chr(Asc(columnRef) + 1)
+        
+        
+        
+        ' Generate Subject to columns
+        
+Dim subjtoLastRowCheck As Long
+Dim subjtoRangeToCheckNew As range
+Dim subjtoCell As range
+Dim subjtoConcatenatedValue As String
+Dim subjtoValueParts() As String
+Dim subjtoUniqueValue As Variant
+Dim subjtoPartValue As String
+Dim subjtoPartValues() As String
+Dim subjtoValue As String
+Dim subjtoMatchingValues() As String
+Dim subjtoMatchingCount As Long
+Dim m As Long
+Dim subjtoColumns As range
+Dim subjtoColumn As range
+
+subjtoLastRowCheck = destinationsEndRow
+Set subjtoRangeToCheckNew = mainWs.range("M19:M" & subjtoLastRowCheck)
+
+subjtoConcatenatedValue = ""
+ReDim subjtoPartValues(1 To 1)
+ReDim subjtoMatchingValues(1 To 1)
+subjtoMatchingCount = 0
+Dim subjtoCount As Long
+Dim subjtoIndex As Long
+
+Dim surchargeRow As Long
+Dim surchargeCell As range
+Dim surchargeCellValue As String
+Dim imoCell As range
+Dim imoCellValue As String
+Dim subjtoLoopCell As range
+Dim subjtoLoopValue As String
+Dim subjtoMatchedValue As String
+Dim rowNumber As Long
+Dim surchargeRowNumber As Long
+Dim surchargesCell As range
+Dim surchargesCellValue As String
+Dim surchargesValueB As String
+    surchargesValueB = "B"
+Dim surchargesStringB As String
+Dim surchargesstartIndex As Integer
+Dim surchargesendIndex As Integer
+Dim currencyFAF As String
+Dim fafpricestartIndex As Integer
+Dim fafpriceendIndex As Integer
+Dim FAF20DCPrice As Double
+Dim FAF40DCPrice As Double
+Dim FAF40HCPrice As Double
+Dim priceUnitTypstartIndex As Integer
+Dim priceUnitTypeendIndex As Integer
+Dim priceUnitType As String
+Dim faf40hcCategoryIndex As Long
+Dim faf40dcCategoryIndex As Long
+Dim faf20CategoryIndex As Long
+Dim faf40hcpriceTypeIndex As Long
+Dim faf40dcpriceTypeIndex As Long
+Dim faf20dcpriceTypeIndex As Long
+Dim faf40hcpriceIndex As Long
+Dim faf40dcpriceIndex As Long
+Dim faf20priceIndex As Long
+Dim fafCurrencyIndex As Long
+Dim valueString As String
+
+    For Each subjtoCell In subjtoRangeToCheckNew.Cells
+        subjtoConcatenatedValue = subjtoCell.value
+        
+        ' Remove extra lines
+    subjtoConcatenatedValue = Replace(subjtoConcatenatedValue, vbCrLf, "")
+    
+        ' Split the value by "SUBJ. TO"
+        subjtoValueParts = Split(subjtoConcatenatedValue, "SUBJ. TO")
+        
+        ' Process each occurrence separately
+        For subjtoIndex = 1 To UBound(subjtoValueParts)
+            subjtoPartValue = subjtoValueParts(subjtoIndex)
+            
+            ' Remove leading and trailing spaces, if any
+            subjtoPartValue = Trim(subjtoPartValue)
+            
+            ' Find the position of the next occurrence of "SUBJ. TO"
+            Dim nextSubjToPos As Long
+            nextSubjToPos = InStr(subjtoPartValue, "SUBJ. TO")
+           ' nextSubjToPos = InStr(subjtoPartValue, ",")
+            
+            ' Extract the value after "SUBJ. TO" up to the next occurrence
+            If nextSubjToPos > 0 Then
+                subjtoPartValue = Mid(subjtoPartValue, nextSubjToPos + Len("SUBJ. TO"))
+            End If
+            
+            ' Remove leading and trailing spaces again
+            subjtoPartValue = Trim(subjtoPartValue)
+            
+            ' Split the part by commas
+            subjtoSplitParts = Split(subjtoPartValue, ",")
+            
+            ' Process each part
+            For Each subjtoUniqueValue In subjtoSplitParts
+                ' Check if uniqueValue is equal to inclusiveValue
+                If Not subjtoUniqueValue = subjtoValue Then
+                     ' Remove leading and trailing spaces, if any
+                        subjtoUniqueValue = Trim(subjtoUniqueValue)
+                        
+                        ' Remove asterisk (*) from the start of the string, if present
+                        If Left(subjtoUniqueValue, 1) = "*" Then
+                            subjtoUniqueValue = Mid(subjtoUniqueValue, 2)
+                        End If
+                        
+                        ' Remove asterisk (*) from the end of the string, if present
+                        If Right(subjtoUniqueValue, 1) = "*" Then
+                            subjtoUniqueValue = Left(subjtoUniqueValue, Len(subjtoUniqueValue) - 1)
+                        End If
+                        ' Remove double asterisks (**) from the start of the string, if present
+                        Do While Left(subjtoUniqueValue, 2) = "**"
+                            subjtoUniqueValue = Mid(subjtoUniqueValue, 3)
+                        Loop
+                        
+                        ' Remove double asterisks (**) from the end of the string, if present
+                        Do While Right(subjtoUniqueValue, 2) = "**"
+                            subjtoUniqueValue = Left(subjtoUniqueValue, Len(subjtoUniqueValue) - 2)
+                        Loop
+                    ' Check if the part contains the keyword "AND"
+                    If InStr(subjtoUniqueValue, "AND") > 0 Then
+                        subjtoUniqueValue = Trim(subjtoUniqueValue)
+                        subjtoUniqueValue = Replace(subjtoUniqueValue, vbCrLf, "") ' Carriage Return + Line Feed
+                        subjtoUniqueValue = Replace(subjtoUniqueValue, vbCr, "") ' Only Carriage Return
+                        subjtoUniqueValue = Replace(subjtoUniqueValue, vbLf, "") ' Only Line Feed
+                        subjtoUniqueValue = Replace(subjtoUniqueValue, Chr(10), "") ' Line Feed using character code
+                        subjtoUniqueValue = Replace(subjtoUniqueValue, Chr(13), "")
+                        ' Create a separate variable to store the split parts
+                        Dim subjtoSplitParts2() As String
+                        subjtoSplitParts2 = Split(subjtoUniqueValue, "AND")
+                        
+                        ' Process each part after splitting by "AND"
+                        For Each subjtoSplitPart In subjtoSplitParts2
+                            ' Remove leading and trailing spaces, if any
+                                subjtoSplitPart = Trim(subjtoSplitPart)
+                            subjtoSplitPart = Replace(subjtoSplitPart, vbCrLf, "") ' Carriage Return + Line Feed
+                            subjtoSplitPart = Replace(subjtoSplitPart, vbCr, "") ' Only Carriage Return
+                            subjtoSplitPart = Replace(subjtoSplitPart, vbLf, "") ' Only Line Feed
+                            subjtoSplitPart = Replace(subjtoSplitPart, Chr(10), "") ' Line Feed using character code
+                            subjtoSplitPart = Replace(subjtoSplitPart, Chr(13), "")
+                            If subjtoSplitPart <> "ALL OTHER SURCHARGES V.A.T.O.S." Then
+                                subjtoMatchingCount = subjtoMatchingCount + 1
+                                ReDim Preserve subjtoMatchingValues(1 To subjtoMatchingCount)
+                                subjtoMatchingValues(subjtoMatchingCount) = subjtoSplitPart
+                                
+                                ' Add the split part to the partValues array
+                                ReDim Preserve subjtoPartValues(1 To UBound(subjtoPartValues) + 1)
+                                subjtoPartValues(UBound(subjtoPartValues)) = subjtoSplitPart
+                            End If
+                        Next subjtoSplitPart
+                    Else
+                        subjtoMatchingCount = subjtoMatchingCount + 1
+                        ReDim Preserve subjtoMatchingValues(1 To subjtoMatchingCount)
+                        subjtoMatchingValues(subjtoMatchingCount) = subjtoUniqueValue
+                        
+                        ' Add the uniqueValue to the partValues array
+                        ReDim Preserve subjtoPartValues(1 To UBound(subjtoPartValues) + 1)
+                        subjtoPartValues(UBound(subjtoPartValues)) = subjtoUniqueValue
+                    End If
+                End If
+            Next subjtoUniqueValue
+        Next subjtoIndex
+    Next subjtoCell
+
+' Remove the last empty element in partValues array
+If UBound(subjtoPartValues) > 1 Then
+    ReDim Preserve subjtoPartValues(1 To UBound(subjtoPartValues) - 1)
+End If
+
+
+ ' Use the matchingValues array as desired
+For m = 1 To subjtoMatchingCount
+    ' Access each matching value using matchingValues(i)
+    Dim subjtoPartName As String
+    subjtoPartName = subjtoMatchingValues(m)
+    
+    If subjtoPartName = "BAF" Then
+        subjtoPartName = "BAF"
+        
+    ElseIf subjtoPartName = "FAF" Then
+        subjtoPartName = "EBAF"
+        
+    ElseIf subjtoPartName = "Doc Fee" Then
+        subjtoPartName = "ODOC"
+        
+    ElseIf subjtoPartName = "THD" Then
+        subjtoPartName = "DTHC"
+        
+    ElseIf subjtoPartName = "Congestion" Then
+        subjtoPartName = "OECTS/DECTS"
+        
+    ElseIf subjtoPartName = "War Risk" Then
+        subjtoPartName = "WRS"
+        
+    ElseIf subjtoPartName = "Winter Surcharge" Then
+        subjtoPartName = "WSU"
+        
+    ElseIf subjtoPartName = "LSS" Then
+        subjtoPartName = "LSF"
+        
+    ElseIf subjtoPartName = "EBS" Then
+        subjtoPartName = "EBAF"
+        
+    ElseIf subjtoPartName = "PCS" Then
+        subjtoPartName = "CONGEST"
+        
+    ElseIf subjtoPartName = "PSS" Then
+        subjtoPartName = "PSS"
+        
+    ElseIf subjtoPartName = "IMO" Then
+        subjtoPartName = "IMO"
+        
+    ElseIf subjtoPartName = "Low Sulphur Surcharge" Then
+        subjtoPartName = "LSF"
+        
+    ElseIf subjtoPartName = "WRS" Then
+        subjtoPartName = "WRS"
+        
+    ElseIf subjtoPartName = "WSU" Then
+        subjtoPartName = "WSU"
+        
+    ElseIf subjtoPartName = "THC" Then
+        subjtoPartName = "OTHC"
+        
+    ElseIf subjtoPartName = "SSL (ISPS)" Then
+        subjtoPartName = "OISPS"
+        
+    ElseIf subjtoPartName = "SSL(ISPS)" Then
+        subjtoPartName = "OISPS"
+
+    End If
+    
+    ' Add new column headers
+    Dim subjtoCurrency As String
+    Dim subjto20DCPrice As String
+    Dim subjto40DCPrice As String
+    Dim subjto40HCPrice As String
+    Dim subjto20DCPriceType As String
+    Dim subjto40DCPriceType As String
+    Dim subjto40HCPriceType As String
+    Dim subjto20DCCategory As String
+    Dim subjto40DCCategory As String
+    Dim subjto40HCCategory As String
+    
+    If subjtoPartName <> "ALL OTHER SURCHARGES V.A.T.O.S." Then
+    ' Find the position of subjtoCurrency column if it already exists
+Dim subjtoCurrencyColumn As range
+    subjtoCurrency = subjtoPartName & " currency"
+Set subjtoCurrencyColumn = ws.Rows(1).Find(subjtoCurrency, , , xlPart, , , False)
+Dim subjto20DCPriceColumn As range
+    subjto20DCPrice = "20DC " & subjtoPartName & " Price"
+Set subjto20DCPriceColumn = ws.Rows(1).Find(subjto20DCPrice, , , xlPart, , , False)
+
+Dim subjto40DCPriceColumn As range
+    subjto40DCPrice = "40DC " & subjtoPartName & " Price"
+    Set subjto40DCPriceColumn = ws.Rows(1).Find(subjto40DCPrice, , , xlPart, , , False)
+    Dim subjto40HCPriceColumn As range
+    subjto40HCPrice = "40HC " & subjtoPartName & " Price"
+    Set subjto40HCPriceColumn = ws.Rows(1).Find(subjto40HCPrice, , , xlPart, , , False)
+    Dim subjto20DCPriceTypeColumn As range
+    subjto20DCPriceType = "20DC " & subjtoPartName & " Pricing type"
+    Set subjto20DCPriceTypeColumn = ws.Rows(1).Find(subjto20DCPriceType, , , xlPart, , , False)
+    Dim subjto40DCPriceTypeColumn As range
+    subjto40DCPriceType = "40DC " & subjtoPartName & " Pricing type"
+    Set subjto40DCPriceTypeColumn = ws.Rows(1).Find(subjto40DCPriceType, , , xlPart, , , False)
+    Dim subjto40HCPriceTypeColumn As range
+    subjto40HCPriceType = "40HC " & subjtoPartName & " Pricing type"
+    Set subjto40HCPriceTypeColumn = ws.Rows(1).Find(subjto40HCPriceType, , , xlPart, , , False)
+    Dim subjto20DCCategoryColumn As range
+    subjto20DCCategory = "20DC " & subjtoPartName & " Category"
+    Set subjto20DCCategoryColumn = ws.Rows(1).Find(subjto20DCCategory, , , xlPart, , , False)
+    Dim subjto40DCCategoryColumn As range
+    subjto40DCCategory = "40DC " & subjtoPartName & " Category"
+    Set subjto40DCCategoryColumn = ws.Rows(1).Find(subjto40DCCategory, , , xlPart, , , False)
+    Dim subjto40HCCategoryColumn As range
+    subjto40HCCategory = "40HC " & subjtoPartName & " Category"
+    Set subjto40HCCategoryColumn = ws.Rows(1).Find(subjto40HCCategory, , , xlPart, , , False)
+    
+    
+    ' Find the position to insert the new column headers
+    Dim subjtoHeaderPosition As Long
+    subjtoHeaderPosition = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column + 1
+    
+    ' Insert the new column headers
+    ws.Cells(1, subjtoHeaderPosition).Resize(1, 3).Insert Shift:=xlToRight
+    If subjtoCurrencyColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition).value = subjtoCurrency
+    End If
+    If subjto20DCPriceColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 1).value = subjto20DCPrice
+    End If
+    If subjto40DCPriceColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 2).value = subjto40DCPrice
+    End If
+    If subjto40HCPriceColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 3).value = subjto40HCPrice
+    End If
+    If subjto20DCPriceTypeColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 4).value = subjto20DCPriceType
+    End If
+    If subjto40HCPriceTypeColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 5).value = subjto40DCPriceType
+    End If
+    If subjto40HCPriceTypeColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 6).value = subjto40HCPriceType
+    End If
+    If subjto20DCCategoryColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 7).value = subjto20DCCategory
+    End If
+    If subjto40DCCategoryColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 8).value = subjto40DCCategory
+    End If
+    If subjto40HCCategoryColumn Is Nothing Then
+    ws.Cells(1, subjtoHeaderPosition + 9).value = subjto40HCCategory
+    End If
+    
+    ' Apply bold formatting to the new column headers
+    ws.range(ws.Cells(1, subjtoHeaderPosition), ws.Cells(1, subjtoHeaderPosition + 9)).Font.Bold = True
+    End If
+    ' Fill "X" in the columns that contain "INCLUDE" in the header
+    'Dim lastColumn As Long
+    'lastColumn = ws.Cells(1, ws.Columns.Count).End(xlToLeft).Column
+    
+    'For j = headerPosition To lastColumn
+        'If InStr(1, ws.Cells(1, j).value, "INCLUDE") > 0 Then
+            'ws.Cells(2, j).value = "X"
+        'End If
+    'Next j
+    ' Check if the column headers contain "INCLUDE"
+   
+    'Set includeColumns = ws.Rows(1).Find("INCLUDE", , , xlPart, , , False)
+    
+Next m
+
+        
+        Set remarksWs = mainWb.Sheets(3)
+Set remarksPortsRange = remarksWs.range("B12", remarksWs.Cells(12, Columns.Count).End(xlToLeft))
+
+' Last Destination row
+        Dim remarksLastDestinationRow As Long
+        remarksLastDestinationRow = remarksWs.range("A" & remarksWs.Rows.Count).End(xlUp).row
+        Dim remarksDestinationsEndRow As Long
+        Dim remarksColumnRefC As String
+        remarksColumnRefC = "C"
+        Dim remarksColumnRefG As String
+        remarksColumnRefG = "G"
+        Dim remarksColumnRefK As String
+        remarksColumnRefK = "K"
+        Dim remarksColumnRefO As String
+        remarksColumnRefO = "O"
+        Dim remarksColumnRefS As String
+        remarksColumnRefS = "S"
+        Dim remarksColumnRefF As String
+        remarksColumnRefF = "F"
+        Dim remarksColumnRefJ As String
+        remarksColumnRefJ = "J"
+        Dim remarksColumnRefN As String
+        remarksColumnRefN = "N"
+        Dim remarksColumnRefR As String
+        remarksColumnRefR = "R"
+        Dim remarksColumnRefV As String
+        remarksColumnRefV = "V"
+        ' Find the end row for destinations by searching for "REMARKS" in column A
+        remarksDestinationsEndRow = Application.WorksheetFunction.Match("IMO", remarksWs.range("A16:A" & remarksLastDestinationRow), 0)
+        remarksDestinationsEndRow = remarksDestinationsEndRow + 15 ' Offset by 16 to account for starting row A17
+        
+        ' Exclude the two empty rows before "REMARKS"
+        If remarksDestinationsEndRow > 15 Then
+            remarksDestinationsEndRow = remarksDestinationsEndRow - 2
+        End If
+        
+        ' Set the destinations range
+        Set remarksDestinationsRange = remarksWs.range("A16:A" & remarksDestinationsEndRow)
+        
+        
+      
+ 
+        
+        
+        
+        
+        
+        
+
+        ' Loop through each port and destination
+        For Each port In Split(portsRange.value, "/")
+            ' Remove "CY" from the port name
+            port = Replace(port, "CY", "")
+            
+            ' Rest of your code...
+            Dim destinationCounter As Long
+            destinationCounter = 0
+            
+            Dim DC20Counter As Long
+            DC20Counter = 0
+            Dim DC40Counter As Long
+            DC40Counter = 0
+            Dim HC40Counter As Long
+            HC40Counter = 0
+            Dim aggrementNoCounter As String
+            aggrementNoCounter = 0
+            Dim destinationValueCounter As Long
+            destinationValueCounter = 0
+             Dim basisValueCounter As Long
+            basisValueCounter = 0
+            Dim polValueCounter As Long
+            polValueCounter = 0
+            
+            
+            Dim portsValue As String
+            portsValue = port
+            
+            For Each destination In destinationsRange.value
+                ' Extract the destination name without parentheses and asterisks
+                Dim destinationName As String
+                destinationName = destination
+                
+                Dim HaulageValues() As String
+                HaulageValues = Split(destinationName, vbLf)
+                For Each Haulagevalue In HaulageValues
+                ' Check if the string contains any of the keywords
+                If InStr(1, Haulagevalue, "feeder", vbTextCompare) > 0 Or _
+                   InStr(1, Haulagevalue, "truck", vbTextCompare) > 0 Or _
+                   InStr(1, Haulagevalue, "by road", vbTextCompare) > 0 Or _
+                   InStr(1, Haulagevalue, "byroad", vbTextCompare) > 0 Or _
+                   InStr(1, Haulagevalue, "rail ramp", vbTextCompare) > 0 Or _
+                   InStr(1, Haulagevalue, "railramp", vbTextCompare) > 0 Then
+                   
+                Dim Haulage As String
+                Haulage = "Feeder Vessel"
+                Else
+                ' Default value if none of the conditions are met
+                Haulage = ""
+                End If
+                If InStr(1, Haulagevalue, "via Piraeus", vbTextCompare) > 0 Then
+                   Dim viaDestination As String
+                viaDestination = "Piraeus (GRPIR PT)"
+                Else
+                ' Default value if none of the conditions are met
+                viaDestination = ""
+                End If
+                Next Haulagevalue
+                
+                ' Remove data within parentheses
+                Dim leftParenIndex As Long
+                leftParenIndex = InStr(destinationName, "(")
+                If leftParenIndex > 0 Then
+                    Dim rightParenIndex As Long
+                    rightParenIndex = InStr(destinationName, ")")
+                    If rightParenIndex > leftParenIndex Then
+                        destinationName = Trim(Left(destinationName, leftParenIndex - 1) & Mid(destinationName, rightParenIndex + 1))
+                    End If
+                End If
+                
+                
+                  ' Remove data within double asterisks
+                    Dim doubleAsteriskStartIndex As Long
+                    doubleAsteriskStartIndex = InStr(destinationName, "**")
+                    If doubleAsteriskStartIndex > 0 Then
+                        Dim doubleAsteriskEndIndex As Long
+                        doubleAsteriskEndIndex = InStr(doubleAsteriskStartIndex + 2, destinationName, "**")
+                        If doubleAsteriskEndIndex > doubleAsteriskStartIndex Then
+                            destinationName = Trim(Left(destinationName, doubleAsteriskStartIndex - 1) & Mid(destinationName, doubleAsteriskEndIndex + 2))
+                        End If
+                    End If
+                    
+                    ' Remove data within single asterisks
+                    Dim singleAsteriskIndex As Long
+                        singleAsteriskIndex = InStr(destinationName, "*")
+                    If singleAsteriskIndex > 0 Then
+                        destinationName = Trim(Left(destinationName, singleAsteriskIndex - 1))
+                    End If
+        
+                    ' Remove any extra new lines within the modified destinationName
+                destinationName = Replace(destinationName, vbCrLf, "")
+                ' Remove extra line and empty space
+                destinationName = Replace(destinationName, vbCrLf, "")
+                destinationName = Replace(destinationName, vbLf, "")
+                destinationName = Replace(destinationName, vbCr, "")
+                ' Trim any leading or trailing spaces
+                destinationName = Trim(destinationName)
+                
+                newRow = lastRow + 1
+
+        Dim portCode As String
+        
+        If Trim(portsValue) = "Hamburg" Then
+            portCode = "(DEHAM PT)"
+        ElseIf Trim(portsValue) = "Bremerhaven" Then
+            portCode = "(DEBRV PT)"
+        ElseIf Trim(portsValue) = "Rotterdam" Then
+            portCode = "(NLRTM PT)"
+        ElseIf Trim(portsValue) = "Antwerp" Then
+            portCode = "(BEANR PT)"
+        ElseIf Trim(portsValue) = "Felixstowe" Then
+            portCode = "(GBFXT PT)"
+        Else
+            ' Default value if none of the conditions are met
+            portCode = ""
+        End If
+        Dim concatenatedString As String
+        concatenatedString = Trim(portsValue) & " " & Trim(portCode)
+        
+        Dim destinationCode As String
+        
+        If Trim(destinationName) = "El Dekheila" Then
+            destinationCode = "(EGEDK PT)"
+        ElseIf Trim(destinationName) = "Damietta,Dumyat" Then
+            destinationCode = "(EGDAM PT)"
+        ElseIf Trim(destinationName) = "Piraeus" Then
+            destinationCode = "(GRPIR PT)"
+        ElseIf Trim(destinationName) = "Haifa" Then
+            destinationCode = "(ILHFA PT)"
+        ElseIf Trim(destinationName) = "Ashdod" Then
+            destinationCode = "(ILASH PT)"
+        ElseIf Trim(destinationName) = "Aliaga" Then
+            destinationCode = "(TRALI PT)"
+        ElseIf Trim(destinationName) = "Gebze" Then
+            destinationCode = "(TRGEB PT)"
+        ElseIf Trim(destinationName) = "Gemlik" Then
+            destinationCode = "(TRGEM PT)"
+        ElseIf Trim(destinationName) = "Iskenderun" Then
+            destinationCode = "(TRISK PT)"
+        ElseIf Trim(destinationName) = "Kumport" Then
+            destinationCode = "(TRKMX PT)"
+        ElseIf Trim(destinationName) = "Mersin" Then
+            destinationCode = "(TRMER PT)"
+            ElseIf Trim(destinationName) = "Varna" Then
+            destinationCode = "(BGVAR PT)"
+            ElseIf Trim(destinationName) = "Limassol" Then
+            destinationCode = "(BGVAR PT)"
+            ElseIf Trim(destinationName) = "Alger" Then
+            destinationCode = "(DZALG PT)"
+            ElseIf Trim(destinationName) = "Port Said West" Then
+            destinationCode = "(EGPSW PT)"
+            ElseIf Trim(destinationName) = "Batumi" Then
+            destinationCode = "(GEBUS ICD)"
+            ElseIf Trim(destinationName) = "Thessaloniki" Then
+            destinationCode = "(GRSKG PT)"
+            ElseIf Trim(destinationName) = "Beirut" Then
+            destinationCode = "(LBBEY PT)"
+            ElseIf Trim(destinationName) = "Misurata" Then
+            destinationCode = "(LYMRA ICD)"
+            ElseIf Trim(destinationName) = "Casablanca" Then
+            destinationCode = "(MACAS PT)"
+            ElseIf Trim(destinationName) = "Malta" Then
+            destinationCode = "(MTDIS PT)"
+            ElseIf Trim(destinationName) = "Koper" Then
+            destinationCode = "(SIKOP PT)"
+            ElseIf Trim(destinationName) = "Izmir" Then
+            destinationCode = "(TRIZM PT)"
+            ElseIf Trim(destinationName) = "Constanta" Then
+            destinationCode = "(ROCND PT)"
+            
+        Else
+            ' Default value if none of the conditions are met
+            destinationCode = ""
+        End If
+        Dim concatenatedDestination As String
+        concatenatedDestination = Trim(destinationName) & " " & Trim(destinationCode)
+        
+        
+        Dim columnBasis As String
+        Dim columnPOL As String
+        Dim columnExtended As String
+        Dim columnB As String
+        
+        
+        Dim columnBasisValue As String
+        columnBasisValue = "M"
+        Dim columnPolRestrictionValue As String
+        columnPolRestrictionValue = "N"
+        Dim columnBValue As String
+        columnBValue = "B"
+        columnBasis = mainWs.Cells(17, columnBasisValue).value
+        columnPOL = mainWs.Cells(17, columnPolRestrictionValue).value
+        Set basisRange = mainWs.Cells(19 + basisValueCounter, columnBasisValue)
+        Set polRestrictionRange = mainWs.Cells(19 + polValueCounter, columnPolRestrictionValue)
+        
+        
+        Dim basisValue As String
+        basisValue = Replace(Replace(columnBasis, vbCr, ""), vbLf, "") & " - " & Replace(Replace(basisRange.value, vbCr, ""), vbLf, "")
+        
+        
+        Dim polRestrictionValue As String
+        polRestrictionValue = Replace(Replace(columnPOL, vbCr, ""), vbLf, "") & " - " & Replace(Replace(polRestrictionRange.value, vbCr, ""), vbLf, "")
+        
+        ' Concatenate the values
+        Dim rateRemark As String
+        rateRemark = basisValue & ";" & polRestrictionValue
+        
+        
+        
+        surchargeRow = mainWs.Cells(mainWs.Rows.Count, "A").End(xlUp).row ' Get the last row in column A
+
+
+
+For Each surchargeCell In mainWs.range("A1:A" & surchargeRow)
+    If surchargeCell.value = "SURCHARGES" Then
+        ' Store the cell value along with its column
+        surchargeCellValue = surchargeCell.EntireRow.Cells(1, 1).Address(0, 0)
+        'MsgBox surchargeCellValue ' Replace with your desired action
+    End If
+Next surchargeCell
+        
+
+For Each imoCell In mainWs.range("A1:A" & surchargeRow)
+    If imoCell.value = "IMO" Then
+        ' Store the cell value along with its column
+        imoCellValue = imoCell.EntireRow.Cells(1, 1).Address(0, 0)
+        'MsgBox surchargeCellValue ' Replace with your desired action
+    End If
+Next imoCell
+        'For Each subjtoCell In basisRange.Cells
+    'subjtoConcatenatedValue = subjtoCell.value
+    
+    ' Remove extra lines
+subjtoConcatenatedValue = Replace(basisValue, vbCrLf, "")
+
+    ' Split the value by "SUBJ. TO"
+    subjtoValueParts = Split(subjtoConcatenatedValue, "SUBJ. TO")
+    
+    ' Process each occurrence separately
+    For subjtoIndex = 1 To UBound(subjtoValueParts)
+        subjtoPartValue = subjtoValueParts(subjtoIndex)
+        
+        ' Remove leading and trailing spaces, if any
+        subjtoPartValue = Trim(subjtoPartValue)
+        
+        ' Find the position of the next occurrence of "SUBJ. TO"
+        'Dim nextSubjToPos As Long
+        nextSubjToPos = InStr(subjtoPartValue, ",")
+        
+        ' Extract the value after "SUBJ. TO" up to the next occurrence
+        If nextSubjToPos > 0 Then
+            subjtoPartValue = Mid(subjtoPartValue, nextSubjToPos + 1)
+        End If
+        
+        ' Remove leading and trailing spaces again
+        subjtoPartValue = Trim(subjtoPartValue)
+        
+        ' Split the part by commas
+        subjtoSplitParts = Split(subjtoPartValue, ",")
+        
+        ' Process each part
+        For Each subjtoUniqueValue In subjtoSplitParts
+            ' Check if uniqueValue is equal to inclusiveValue
+            If Not subjtoUniqueValue = subjtoValue Then
+                
+                ' Check if the part contains the keyword "AND"
+                If InStr(subjtoUniqueValue, "AND") > 0 Then
+                    ' Create a separate variable to store the split parts
+                    'Dim subjtoSplitParts2() As String
+                    subjtoSplitParts2 = Split(subjtoUniqueValue, "AND")
+                    
+                    ' Process each part after splitting by "AND"
+                    For Each subjtoSplitPart In subjtoSplitParts2
+                        ' Remove leading and trailing spaces, if any
+                        subjtoSplitPart = Trim(subjtoSplitPart)
+                        
+                        If subjtoSplitPart <> "ALL OTHER SURCHARGES V.A.T.O.S." Then
+                            ' Check if subjtoSplitPart matches the loop variable
+                             For Each subjtoLoopCell In mainWs.range(surchargeCellValue & ":" & imoCellValue).Cells
+                                 subjtoLoopValue = subjtoLoopCell.value
+                                 If InStr(1, subjtoLoopValue, subjtoSplitPart) > 0 Then
+                                     ' Get the cell value in a new variable
+                                     rowNumber = subjtoLoopCell.row
+                                     'subjtoMatchedValue = rowNumber
+                                     columnB = mainWs.Cells(rowNumber, columnBValue).value
+                                     'MsgBox subjtoMatchedValue ' Replace with your desired action
+                                 End If
+                             Next subjtoLoopCell
+                        End If
+                        
+                        'subjtoMatchingCount = subjtoMatchingCount + 1
+                        'ReDim Preserve subjtoMatchingValues(1 To subjtoMatchingCount)
+                        'subjtoMatchingValues(subjtoMatchingCount) = subjtoSplitPart
+                        
+                        ' Add the split part to the partValues array
+                        'ReDim Preserve subjtoPartValues(1 To UBound(subjtoPartValues) + 1)
+                        'subjtoPartValues(UBound(subjtoPartValues)) = subjtoSplitPart
+                    Next subjtoSplitPart
+                Else
+                      ' Remove leading and trailing spaces, if any
+                    subjtoUniqueValue = Trim(subjtoUniqueValue)
+                    ' Check if subjtoUniqueValue matches the loop variable
+                    For Each subjtoLoopCell In mainWs.range(surchargeCellValue & ":" & imoCellValue).Cells
+                        subjtoLoopValue = subjtoLoopCell.value
+                        If InStr(1, subjtoLoopCell.value, subjtoUniqueValue) > 0 Then
+                            ' Get the cell value in a new variable
+                            
+                            rowNumber = CLng(Split(subjtoLoopCell.Address, "$")(2))
+                            'subjtoMatchedValue = rowNumber
+                            columnB = mainWs.Cells(rowNumber, columnBValue).value
+                            'MsgBox subjtoMatchedValue ' Replace with your desired action
+                        End If
+                    Next subjtoLoopCell
+                End If
+            End If
+            
+        Next subjtoUniqueValue
+    Next subjtoIndex
+'Next subjtoCell
+        
+        
+       
+
+        
+        
+       
+        
+        
+        
+        
+        
+        
+        
+        Dim portValue As Variant
+                    portValue = mainWs.Cells(17, columnRef).value
+            
+            
+            ' Check if port value matches
+            If Trim(portValue) = Trim(port) Then
+            ' Get the value from column D17 for the current destination
+            
+            value20DC = mainWs.Cells(19 + DC20Counter, columnRef).value
+            ' Check if the value20DC matches the undesired values
+            If value20DC = "no service" Or value20DC = "[2nd page]" Or value20DC = "" Or value20DC = Empty Or value20DC = "on request" Or value20DC = "suspended" Or value20DC = "[1st page]" Then
+                value20DC = "" ' Set the value to empty
+            End If
+            ws.Cells(newRow, 15).value = value20DC
+            
+             ' Get the value from column D17 for the current destination
+
+            value40DC = mainWs.Cells(19 + DC20Counter, columnRef1).value
+            ' Check if the value20DC matches the undesired values
+            If value40DC = "no service" Or value40DC = "[2nd page]" Or value40DC = "" Or value40DC = Empty Or value40DC = "on request" Or value40DC = "suspended" Or value40DC = "[1st page]" Then
+                value40DC = "" ' Set the value to empty
+            End If
+            ws.Cells(newRow, 16).value = value40DC
+            
+             ' Get the value from column D17 for the current destination
+                         
+            value40HC = mainWs.Cells(19 + DC20Counter, columnRef1).value
+            ' Check if the value20DC matches the undesired values
+            If value40HC = "no service" Or value40HC = "[2nd page]" Or value40HC = "" Or value40HC = Empty Or value40HC = "on request" Or value40HC = "suspended" Or value40HC = "[1st page]" Then
+                value40HC = "" ' Set the value to empty
+            End If
+            ws.Cells(newRow, 17).value = value40HC
+            
+             ' Get the value from column D17 for the current destination
+            'Dim valueAggrementNo As Variant
+            'valueAggrementNo = mainWs.Cells(19 + aggrementNoCounter, columnRef).Value
+            ' Check if the value20DC matches the undesired values
+            'If valueAggrementNo = "no service" Or valueAggrementNo = "[2nd page]" Or valueAggrementNo = "" Or valueAggrementNo = Empty Then
+             '   valueAggrementNo = "" ' Set the value to empty
+            'End If
+            'ws.Cells(newRow, 9).Value = valueAggrementNo
+            
+            If value20DC = "" Or value20DC = Empty Then
+                ws.Cells(newRow, 18).value = "" ' Set the value to empty
+            Else
+                ws.Cells(newRow, 18).value = "Per Container"
+            End If
+            
+            If value40DC = "" Or value20DC = Empty Then
+                ws.Cells(newRow, 19).value = "" ' Set the value to empty
+                Else
+                ws.Cells(newRow, 19).value = "Per Container"
+            End If
+            
+            If value40HC = "" Or value40HC = Empty Then
+                ws.Cells(newRow, 20).value = "" ' Set the value to empty
+            Else
+                ws.Cells(newRow, 20).value = "Per Container"
+            End If
+        
+        
+        
+        ' Skip adding rows for the second and third destination rows
+        If destinationCounter = 0 Then
+            ' Add data to the new row in the new workbook
+            If Not (value20DC = "no service" Or value20DC = "[2nd page]" Or value20DC = "" Or value20DC = Empty Or value20DC = "on request" Or value20DC = "suspended" Or value20DC = "[1st page]") _
+        And Not (value40DC = "no service" Or value40DC = "[2nd page]" Or value40DC = "" Or value40DC = Empty Or value40DC = "on request" Or value40DC = "suspended" Or value40DC = "[1st page]") _
+        And Not (value40HC = "no service" Or value40HC = "[2nd page]" Or value40HC = "" Or value40HC = Empty Or value40HC = "on request" Or value40HC = "suspended" Or value40HC = "[1st page]") Then
+            ws.Cells(newRow, 1).value = ""  ' Modify as needed
+            ' Add more code here to populate the other columns with data
+            ws.Cells(newRow, 2).NumberFormat = "yyyy-mm-dd"
+            ws.Cells(newRow, 2).value = validFrom
+            ws.Cells(newRow, 3).NumberFormat = "yyyy-mm-dd"
+            ws.Cells(newRow, 3).value = validTo
+            ws.Cells(newRow, 4).value = "CY"
+            ws.Cells(newRow, 5).value = "CY"
+            ws.Cells(newRow, 6).value = "FCL Mainleg"
+            ws.Cells(newRow, 7).value = extractedValue
+            ' Add port and destination to Origin Locations and Destination Locations respectively
+            ws.Cells(newRow, 10).value = Haulage
+            ws.Cells(newRow, 11).value = concatenatedString
+            ws.Cells(newRow, 12).value = viaDestination
+            ws.Cells(newRow, 13).value = concatenatedDestination
+            ws.Cells(newRow, 14).value = currencyCode
+            ws.Cells(newRow, 23).value = rateRemark
+            ' Loop through each port and destination
+            
+        For Each remarksPort In Split(remarksPortsRange.value, "/")
+            ' Remove "CY" from the port name
+            remarksPort = Replace(remarksPort, "CY", "")
+            Dim remarkSFServiceCounter As Long
+            remarkSFServiceCounter = 0
+            Dim remarkRemarkServiceCounter As Long
+            remarkRemarkServiceCounter = 0
+            For Each remarksDestination In remarksDestinationsRange.value
+                If remarksDestinationCounter = 0 Then
+                Dim remarkDestinationName As String
+                remarkDestinationName = remarksDestination
+             ' Remove data within parentheses
+                Dim remarkLeftParenIndex As Long
+                remarkLeftParenIndex = InStr(remarkDestinationName, "(")
+                If remarkLeftParenIndex > 0 Then
+                    Dim remarkrightParenIndex As Long
+                    remarkrightParenIndex = InStr(remarkDestinationName, ")")
+                    If remarkrightParenIndex > remarkLeftParenIndex Then
+                        remarkDestinationName = Trim(Left(remarkDestinationName, remarkLeftParenIndex - 1) & Mid(remarkDestinationName, remarkrightParenIndex + 1))
+                    End If
+                End If
+            
+               Dim remarksPortValueC As Variant
+                remarksPortValueC = remarksWs.Cells(14, remarksColumnRefC).value
+               Dim remarksPortValueG As Variant
+                remarksPortValueG = remarksWs.Cells(14, remarksColumnRefG).value
+               Dim remarksPortValueK As Variant
+                remarksPortValueK = remarksWs.Cells(14, remarksColumnRefK).value
+               Dim remarksPortValueO As Variant
+                remarksPortValueO = remarksWs.Cells(14, remarksColumnRefO).value
+               Dim remarksPortValueS As Variant
+                remarksPortValueS = remarksWs.Cells(14, remarksColumnRefS).value
+                ' Check if port value matches
+                If Trim(remarksPortValueC) = Trim(remarksPort) Then
+                     remarkvalueService = remarksWs.Cells(16 + remarkSFServiceCounter, remarksColumnRefC).value
+                      If remarkvalueService = "no service" Or remarkvalueService = "[2nd page]" Or remarkvalueService = "-" Or remarkvalueService = "--" Or remarkvalueService = "" Or remarkvalueService = Empty Or remarkvalueService = "on request" Or remarkvalueService = "suspended" Or remarkvalueService = "[1st page]" Then
+                        remarkvalueService = "" ' Set the value to empty
+                      End If
+                     remarkvalueRemark = remarksWs.Cells(16 + remarkRemarkServiceCounter, remarksColumnRefF).value
+                      If remarkvalueRemark = "no service" Or remarkvalueRemark = "[2nd page]" Or remarkvalueRemark = "-" Or remarkvalueRemark = "--" Or remarkvalueRemark = "" Or remarkvalueRemark = Empty Or remarkvalueRemark = "on request" Or remarkvalueRemark = "suspended" Or remarkvalueRemark = "[1st page]" Then
+                        remarkvalueRemark = "" ' Set the value to empty
+                      End If
+                      If Trim(remarksPortValueC) = Trim(portValue) And Trim(remarksPort) = Trim(port) Then
+                        If Trim(remarkDestinationName) = Trim(destinationName) Then
+                            ws.Cells(newRow, 21).value = remarkvalueService
+                            ws.Cells(newRow, 12).value = remarkvalueRemark
+                        End If
+                      End If
+                      
+                ElseIf Trim(remarksPortValueG) = Trim(remarksPort) Then
+                     remarkvalueService = remarksWs.Cells(16 + remarkSFServiceCounter, remarksColumnRefG).value
+                      If remarkvalueService = "no service" Or remarkvalueService = "[2nd page]" Or remarkvalueService = "-" Or remarkvalueService = "--" Or remarkvalueService = "" Or remarkvalueService = Empty Or remarkvalueService = "on request" Or remarkvalueService = "suspended" Or remarkvalueService = "[1st page]" Then
+                        remarkvalueService = "" ' Set the value to empty
+                      End If
+                     remarkvalueRemark = remarksWs.Cells(16 + remarkRemarkServiceCounter, remarksColumnRefJ).value
+                      If remarkvalueRemark = "no service" Or remarkvalueRemark = "[2nd page]" Or remarkvalueRemark = "-" Or remarkvalueRemark = "--" Or remarkvalueRemark = "" Or remarkvalueRemark = Empty Or remarkvalueRemark = "on request" Or remarkvalueRemark = "suspended" Or remarkvalueRemark = "[1st page]" Then
+                        remarkvalueRemark = "" ' Set the value to empty
+                      End If
+                      If Trim(remarksPortValueG) = Trim(portValue) And Trim(remarksPort) = Trim(port) Then
+                        If Trim(remarkDestinationName) = Trim(destinationName) Then
+                            ws.Cells(newRow, 21).value = remarkvalueService
+                            ws.Cells(newRow, 12).value = remarkvalueRemark
+                        End If
+                      End If
+                      
+                ElseIf Trim(remarksPortValueK) = Trim(remarksPort) Then
+                     remarkvalueService = remarksWs.Cells(16 + remarkSFServiceCounter, remarksColumnRefK).value
+                      If remarkvalueService = "no service" Or remarkvalueService = "[2nd page]" Or remarkvalueService = "-" Or remarkvalueService = "--" Or remarkvalueService = "" Or remarkvalueService = Empty Or remarkvalueService = "on request" Or remarkvalueService = "suspended" Or remarkvalueService = "[1st page]" Then
+                        remarkvalueService = "" ' Set the value to empty
+                      End If
+                     remarkvalueRemark = remarksWs.Cells(16 + remarkRemarkServiceCounter, remarksColumnRefN).value
+                      If remarkvalueRemark = "no service" Or remarkvalueRemark = "[2nd page]" Or remarkvalueRemark = "-" Or remarkvalueRemark = "--" Or remarkvalueRemark = "" Or remarkvalueRemark = Empty Or remarkvalueRemark = "on request" Or remarkvalueRemark = "suspended" Or remarkvalueRemark = "[1st page]" Then
+                        remarkvalueRemark = "" ' Set the value to empty
+                      End If
+                      If Trim(remarksPortValueK) = Trim(portValue) And Trim(remarksPort) = Trim(port) Then
+                        If Trim(remarkDestinationName) = Trim(destinationName) Then
+                            ws.Cells(newRow, 21).value = remarkvalueService
+                            ws.Cells(newRow, 12).value = remarkvalueRemark
+                        End If
+                      End If
+                
+                ElseIf Trim(remarksPortValueO) = Trim(remarksPort) Then
+                     remarkvalueService = remarksWs.Cells(16 + remarkSFServiceCounter, remarksColumnRefO).value
+                      If remarkvalueService = "no service" Or remarkvalueService = "[2nd page]" Or remarkvalueService = "-" Or remarkvalueService = "--" Or remarkvalueService = "" Or remarkvalueService = Empty Or remarkvalueService = "on request" Or remarkvalueService = "suspended" Or remarkvalueService = "[1st page]" Then
+                        remarkvalueService = "" ' Set the value to empty
+                      End If
+                     remarkvalueRemark = remarksWs.Cells(16 + remarkRemarkServiceCounter, remarksColumnRefR).value
+                      If remarkvalueRemark = "no service" Or remarkvalueRemark = "[2nd page]" Or remarkvalueRemark = "-" Or remarkvalueRemark = "--" Or remarkvalueRemark = "" Or remarkvalueRemark = Empty Or remarkvalueRemark = "on request" Or remarkvalueRemark = "suspended" Or remarkvalueRemark = "[1st page]" Then
+                        remarkvalueRemark = "" ' Set the value to empty
+                      End If
+                      If Trim(remarksPortValueO) = Trim(portValue) And Trim(remarksPort) = Trim(port) Then
+                       If Trim(remarkDestinationName) = Trim(destinationName) Then
+                            ws.Cells(newRow, 21).value = remarkvalueService
+                            ws.Cells(newRow, 12).value = remarkvalueRemark
+                        End If
+                      End If
+                      
+                ElseIf Trim(remarksPortValueS) = Trim(remarksPort) Then
+                     remarkvalueService = remarksWs.Cells(16 + remarkSFServiceCounter, remarksColumnRefS).value
+                      If remarkvalueService = "no service" Or remarkvalueService = "[2nd page]" Or remarkvalueService = "-" Or remarkvalueService = "--" Or remarkvalueService = "" Or remarkvalueService = Empty Or remarkvalueService = "on request" Or remarkvalueService = "suspended" Or remarkvalueService = "[1st page]" Then
+                        remarkvalueService = "" ' Set the value to empty
+                      End If
+                     remarkvalueRemark = remarksWs.Cells(16 + remarkRemarkServiceCounter, remarksColumnRefV).value
+                      If remarkvalueRemark = "no service" Or remarkvalueRemark = "[2nd page]" Or remarkvalueRemark = "-" Or remarkvalueRemark = "--" Or remarkvalueRemark = "" Or remarkvalueRemark = Empty Or remarkvalueRemark = "on request" Or remarkvalueRemark = "suspended" Or remarkvalueRemark = "[1st page]" Then
+                        remarkvalueRemark = "" ' Set the value to empty
+                      End If
+                      If Trim(remarksPortValueS) = Trim(portValue) And Trim(remarksPort) = Trim(port) Then
+                        If Trim(remarkDestinationName) = Trim(destinationName) Then
+                            ws.Cells(newRow, 21).value = remarkvalueService
+                            ws.Cells(newRow, 12).value = remarkvalueRemark
+                        End If
+                      End If
+                      
+                End If
+            End If
+                 remarksDestinationCounter = remarksDestinationCounter + 1
+        
+    ' Reset the destination counter after processing the third row
+    If remarksDestinationCounter = 1 Then
+        remarksDestinationCounter = 0
+        remarkSFServiceCounter = remarkSFServiceCounter + 1
+        remarkRemarkServiceCounter = remarkRemarkServiceCounter + 1
+    End If
+            Next remarksDestination
+        Next remarksPort
+            
+        Dim searchRange As range
+For Each includeColumn In ws.Rows(1).Cells
+If InStr(1, includeColumn.value, "INCLUDE", vbTextCompare) > 0 Then
+
+' Loop through each column with "INCLUDE" header
+'For Each includeColumn In includeColumns
+    ' Get the column index
+    Dim columnIndex As Long
+    columnIndex = includeColumn.Column
+    
+    ' Fill data in the column with "X"
+    
+        ws.Cells(newRow, columnIndex).value = "X"
+ End If
+Next includeColumn
+
+Set fafCurrencyColumns = ws.Rows(1).Find("EBAF currency", , , xlPart, , , False)
+surchargeRow = mainWs.Cells(mainWs.Rows.Count, "A").End(xlUp).row ' Get the last row in column A
+
+For Each surchargeCell In mainWs.range("A1:A" & surchargeRow)
+    If surchargeCell.value = "SURCHARGES" Then
+        ' Store the cell value along with its column
+        surchargeCellValue = surchargeCell.EntireRow.Cells(1, 1).Address(0, 0)
+        'MsgBox surchargeCellValue ' Replace with your desired action
+    End If
+Next surchargeCell
+        
+
+For Each imoCell In mainWs.range("A1:A" & surchargeRow)
+    If imoCell.value = "IMO" Then
+        ' Store the cell value along with its column
+        imoCellValue = imoCell.EntireRow.Cells(1, 1).Address(0, 0)
+        'MsgBox surchargeCellValue ' Replace with your desired action
+    End If
+Next imoCell
+        
+        
+     
+' Modify the range for the surchargeCell loop
+For Each surchargesCell In mainWs.range(mainWs.Cells(range(surchargeCellValue).row + 1, 1).Address(0, 0) & ":" & mainWs.Cells(range(imoCellValue).row - 2, 1).Address(0, 0))
+    surchargesCellValue = surchargesCell.EntireRow.Cells(1, 1).Address(0, 0)
+    
+    'surchargeRowNumber = mainWs.range(surchargeCellValue).row
+    surchargeRowNumber = mainWs.range(surchargesCellValue).row
+    'surchargesStringB = mainWs.Cells(surchargeRowNumber, mainWs.range(surchargesValueB & surchargeRowNumber).Column).value
+    'surchargesStringB = mainWs.Cells("B" & surchargeRowNumber).value
+     surchargesStringB = mainWs.Cells(surchargeRowNumber, surchargesValueB).value
+    If InStr(surchargesCell, "FAF") > 0 Then
+      
+        surchargesstartIndex = InStr(surchargesStringB, ":") + 2 ' Add 2 to skip the colon and space
+        surchargesendIndex = InStr(surchargesstartIndex, surchargesStringB, " ") - 1 ' Get the index of the next space and subtract 1
+        currencyFAF = Trim(Mid(surchargesStringB, surchargesstartIndex, surchargesendIndex - surchargesstartIndex + 1))
+    
+        'fafpricestartIndex = InStr(surchargesStringB, ":") + 1
+        'fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+        fafpricestartIndex = InStr(surchargesStringB, ":") + 6
+        fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+        valueString = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
+        'FAF20DCPrice = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
+        FAF20DCPrice = CDbl(valueString)
+            
+        priceUnitTypestartIndex = InStr(surchargesStringB, "/") + 1
+        priceUnitTypeendIndex = InStr(surchargesStringB, "[") - 1
+        priceUnitType = Trim(Mid(surchargesStringB, priceUnitTypestartIndex, priceUnitTypeendIndex - priceUnitTypestartIndex))
+    
+            For Each fafCurrencyColumn In ws.Rows(1).Cells
+                If InStr(1, fafCurrencyColumn.value, "EBAF currency", vbTextCompare) > 0 Then
+            
+                ' Loop through each column with "INCLUDE" header
+                'For Each includeColumn In includeColumns
+                ' Get the column index
+                    fafCurrencyIndex = fafCurrencyColumn.Column
+                ' Fill data in the column with "X"
+                    ws.Cells(newRow, fafCurrencyIndex).value = currencyFAF
+                End If
+                   
+                    
+                If InStr(1, fafCurrencyColumn.value, "20DC EBAF Price", vbTextCompare) > 0 Then
+                        
+                    faf20priceIndex = fafCurrencyColumn.Column
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        ws.Cells(newRow, faf20priceIndex).value = FAF20DCPrice
+                    End If
+                End If
+            
+                    
+                If InStr(1, fafCurrencyColumn.value, "40DC EBAF Price", vbTextCompare) > 0 Then
+                        
+                    faf40dcpriceIndex = fafCurrencyColumn.Column
+                    
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        FAF40DCPrice = CDbl(FAF20DCPrice) * 2
+                        ws.Cells(newRow, faf40dcpriceIndex).value = FAF40DCPrice
+                    End If
+                End If
+             
+                If InStr(1, fafCurrencyColumn.value, "40HC EBAF Price", vbTextCompare) > 0 Then
+                        
+                    faf40hcpriceIndex = fafCurrencyColumn.Column
+                    
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        FAF40HCPrice = CDbl(FAF20DCPrice) * 2
+                        ws.Cells(newRow, faf40hcpriceIndex).value = FAF40HCPrice
+                    End If
+                 End If
+             
+                If InStr(1, fafCurrencyColumn.value, "20DC EBAF Pricing type", vbTextCompare) > 0 Then
+                   If priceUnitType = "TEU" Then
+                       
+                      faf20dcpriceTypeIndex = fafCurrencyColumn.Column
+                      ws.Cells(newRow, faf20dcpriceTypeIndex).value = "per unit"
+                   End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40DC EBAF Pricing type", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        'Dim faf40hcCategoryIndex As Long
+                        'Dim faf40dcCategoryIndex As Long
+                        'Dim faf20CategoryIndex As Long
+                        'Dim faf40hcpriceTypeIndex As Long
+                        'Dim faf40dcpriceTypeIndex As Long
+                        faf40dcpriceTypeIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40dcpriceTypeIndex).value = "per unit"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40HC EBAF Pricing type", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40hcpriceTypeIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40hcpriceTypeIndex).value = "per unit"
+                    End If
+                 End If
+             
+                 If InStr(1, fafCurrencyColumn.value, "20DC EBAF Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                       faf20dcCategoryIndex = fafCurrencyColumn.Column
+                       ws.Cells(newRow, faf20dcCategoryIndex).value = "lineitem"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40DC EBAF Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40dcCategoryIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40dcCategoryIndex).value = "lineitem"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40HC EBAF Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40hcCategoryIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40hcCategoryIndex).value = "lineitem"
+                    End If
+                 End If
+         
+          Next fafCurrencyColumn
+     ElseIf InStr(surchargesCell, "THC") > 0 Then
+      
+        surchargesstartIndex = InStr(surchargesStringB, ":") + 2 ' Add 2 to skip the colon and space
+        surchargesendIndex = InStr(surchargesstartIndex, surchargesStringB, " ") - 1 ' Get the index of the next space and subtract 1
+        currencyFAF = Trim(Mid(surchargesStringB, surchargesstartIndex, surchargesendIndex - surchargesstartIndex + 1))
+    
+        'fafpricestartIndex = InStr(surchargesStringB, ":") + 1
+        'fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+        fafpricestartIndex = InStr(surchargesStringB, ":") + 6
+        fafpriceendIndex = InStr(surchargesStringB, ",") - 1
+        valueString = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
+        'FAF20DCPrice = CDbl(Trim(Mid(surchargesStringB, fafpricestartIndex, fafpriceendIndex - fafpricestartIndex + 1)))
+        FAF20DCPrice = CDbl(valueString)
+            
+        priceUnitTypestartIndex = InStr(surchargesStringB, "/") + 1
+        priceUnitTypeendIndex = InStr(surchargesStringB, "[") - 1
+        priceUnitType = Trim(Mid(surchargesStringB, priceUnitTypestartIndex, priceUnitTypeendIndex - priceUnitTypestartIndex))
+    
+            For Each fafCurrencyColumn In ws.Rows(1).Cells
+                If InStr(1, fafCurrencyColumn.value, "OTHC currency", vbTextCompare) > 0 Then
+            
+                ' Loop through each column with "INCLUDE" header
+                'For Each includeColumn In includeColumns
+                ' Get the column index
+                    fafCurrencyIndex = fafCurrencyColumn.Column
+                ' Fill data in the column with "X"
+                    ws.Cells(newRow, fafCurrencyIndex).value = currencyFAF
+                End If
+                   
+                    
+                If InStr(1, fafCurrencyColumn.value, "20DC OTHC Price", vbTextCompare) > 0 Then
+                        
+                    faf20priceIndex = fafCurrencyColumn.Column
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        ws.Cells(newRow, faf20priceIndex).value = FAF20DCPrice
+                    End If
+                End If
+            
+                    
+                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Price", vbTextCompare) > 0 Then
+                        
+                    faf40dcpriceIndex = fafCurrencyColumn.Column
+                    
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        FAF40DCPrice = CDbl(FAF20DCPrice) * 2
+                        ws.Cells(newRow, faf40dcpriceIndex).value = FAF40DCPrice
+                    End If
+                End If
+             
+                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Price", vbTextCompare) > 0 Then
+                        
+                    faf40hcpriceIndex = fafCurrencyColumn.Column
+                    
+                    ' Fill data in the column with "X"
+                    If priceUnitType = "TEU" Then
+                        FAF40HCPrice = CDbl(FAF20DCPrice) * 2
+                        ws.Cells(newRow, faf40hcpriceIndex).value = FAF40HCPrice
+                    End If
+                 End If
+             
+                If InStr(1, fafCurrencyColumn.value, "20DC OTHC Pricing type", vbTextCompare) > 0 Then
+                   If priceUnitType = "TEU" Then
+                       
+                      faf20dcpriceTypeIndex = fafCurrencyColumn.Column
+                      ws.Cells(newRow, faf20dcpriceTypeIndex).value = "per unit"
+                   End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Pricing type", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        'Dim faf40hcCategoryIndex As Long
+                        'Dim faf40dcCategoryIndex As Long
+                        'Dim faf20CategoryIndex As Long
+                        'Dim faf40hcpriceTypeIndex As Long
+                        'Dim faf40dcpriceTypeIndex As Long
+                        faf40dcpriceTypeIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40dcpriceTypeIndex).value = "per unit"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Pricing type", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40hcpriceTypeIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40hcpriceTypeIndex).value = "per unit"
+                    End If
+                 End If
+             
+                 If InStr(1, fafCurrencyColumn.value, "20DC OTHC Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                       faf20dcCategoryIndex = fafCurrencyColumn.Column
+                       ws.Cells(newRow, faf20dcCategoryIndex).value = "lineitem"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40DC OTHC Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40dcCategoryIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40dcCategoryIndex).value = "lineitem"
+                    End If
+                End If
+                
+                If InStr(1, fafCurrencyColumn.value, "40HC OTHC Category", vbTextCompare) > 0 Then
+                    If priceUnitType = "TEU" Then
+                        
+                        faf40hcCategoryIndex = fafCurrencyColumn.Column
+                        ws.Cells(newRow, faf40hcCategoryIndex).value = "lineitem"
+                    End If
+                 End If
+         
+          Next fafCurrencyColumn
+
+    
+    End If
+Next surchargesCell
+
+            ' ' Check if port and destination match the criteria in D16 and A16
+            ' If ws.Cells(16, 4).Value = port And ws.Cells(16, 1).Value = destinationName Then
+                ' Set value from column D in the new row's column 15
+               ' ws.Cells(newRow, 15).Value = ws.Cells(17 + destinationCounter * 3, 4).Value
+            ' End If
+            
+            
+            
+            
+            lastRow = lastRow + 1
+            End If
+        End If
+    End If
+    
+    ' Increment the destination counter
+    destinationCounter = destinationCounter + 1
+        
+    ' Reset the destination counter after processing the third row
+    If destinationCounter = 1 Then
+        destinationCounter = 0
+        DC20Counter = DC20Counter + 1
+        DC40Counter = DC40Counter + 1
+        HC40Counter = HC40Counter + 1
+        destinationValueCounter = destinationValueCounter + 1
+        basisValueCounter = basisValueCounter + 1
+        polValueCounter = polValueCounter + 1
+    End If
+    Next destination
+   
+    ' Increment the column reference to the next column
+    columnRef = Chr(Asc(columnRef) + 2)
+    columnRef1 = Chr(Asc(columnRef1) + 2)
+    Next port
+
+
+
+    ' Auto-fit column widths
+    ws.UsedRange.Columns.AutoFit
+        
+    ' Save the new workbook to a selected location
+    Dim savePath As String
+    savePath = Application.GetSaveAsFilename(FileFilter:="Excel Files (*.xlsx), *.xlsx")
+        
+    If savePath <> "False" Then
+        wb.SaveAs savePath
+        'wb.Close
+        MsgBox "File saved successfully!"
+    Else
+        wb.Close False
+        MsgBox "Operation cancelled."
+    End If
+        
+    ' Close the main workbook
+    'mainWb.Close
+    Else
+    MsgBox "Operation cancelled."
+    End If
+End Sub
+
